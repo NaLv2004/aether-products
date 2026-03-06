@@ -1,1 +1,1 @@
-run.bat
+python lsq_quantizer.py --bit_width 2 --lr 0.01 --num_elements 100

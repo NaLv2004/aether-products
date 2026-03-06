@@ -1,2 +1,5 @@
-pip install tqdm
-python gnn_detector.py --train_epochs 200 --batch_size 128 --lr 0.001 --eval_trials 1000
+@echo off
+echo Installing requirements (if any)...
+pip install torch
+echo Running LSQ Quantizer Verification...
+python lsq_quantizer.py --bit_width 2 --lr 0.01 --num_elements 100

@@ -289,3 +289,30 @@
 
 ## 预期结果
 在高 SNR (20dB) 下，GNN 检测器由于能够学习到非线性的干扰模式，通常比线性加权的 LSFD 展现出 15% 以上的 BER 降低。
+
+## [Current Step]
+# LSQ 量化器 (Learned Step-size Quantization) 实现
+
+该模块实现了 Esser et al. 提出的 **LSQ (Learned Step-size Quantization)** 可微量化器。它是构建可学习位宽神经网络的核心组件，支持通过梯度下降优化量化步长（Step-size）。
+
+## 功能特性
+
+1.  **LSQFunction**: 自定义 `torch.autograd.Function`，实现了直通估计器 (Straight-Through Estimator, STE)。
+    -   **前向**: 执行 `v_hat = round(clamp(v/s, v_min, v_max)) * s`。
+    -   **反向**: 按照论文公式计算对输入张量 `v` 和步长 `s` 的梯度。
+2.  **LSQQuantizer**:
+    -   支持 **2-bit** (范围: -2 to 1) 和 **3-bit** (范围: -4 to 3) 量化。
+    -   **自动初始化**: 使用第一个 batch 输入张量的统计特性（`2 * E[|v|] / sqrt(v_max)`）自动初始化步长 `s`。
+    -   **参数化**: 步长 `s` 被定义为 `nn.Parameter`，可参与模型整体训练。
+
+## 命令行参数
+
+`lsq_quantizer.py` 提供以下可配置超参数：
+
+-   `--bit_width`: 量化位宽，可选 `2` 或 `3`。
+-   `--lr`: 步长 `s` 的优化学习率，默认 `0.01`。
+-   `--num_elements`: 验证脚本中生成的随机测试张量的大小。
+
+## 运行方式
+
+直接运行 `run.bat` 或在命令行执行：
