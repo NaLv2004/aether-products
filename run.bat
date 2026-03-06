@@ -1,3 +1,3 @@
 @echo off
-:: 环境中已有 numpy，不需要重复安装
-python modeling.py --epochs 1000 --area_size 200 --p_tx 23
+rem 环境中已有 numpy 和 torch
+python baselines.py --epochs 2000 --num_ap 16 --num_ue 4
