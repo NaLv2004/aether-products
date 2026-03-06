@@ -1,3 +1,2 @@
-@echo off
-rem 环境中已有 numpy 和 torch
-python baselines.py --epochs 2000 --num_ap 16 --num_ue 4
+pip install tqdm
+python gnn_detector.py --train_epochs 200 --batch_size 128 --lr 0.001 --eval_trials 1000

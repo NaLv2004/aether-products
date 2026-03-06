@@ -1,1 +1,1 @@
-python baselines.py --epochs 2000 --num_ap 16 --num_ue 4 --area_size 200
+run.bat

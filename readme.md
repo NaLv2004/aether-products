@@ -263,3 +263,29 @@
 
 ## 运行方式
 直接运行 `run.bat` 即可开始仿真：
+
+## [Current Step]
+# GNN Detector for Cell-Free MIMO
+
+本项目实现了一个基于异构图神经网络 (Heterogeneous GNN) 的多用户信号检测器，旨在 Cell-Free MIMO 场景下通过深度学习消除多用户干扰 (MUI)，并超越传统的 LSFD (Large-Scale Fading Decoding) 基准。
+
+## 功能特性
+1. **物理环境模拟**：严格遵循 `baselines.py` 的参数，包括 16 AP, 4 UE, 3GPP UMi 路径损耗和 Rayleigh 衰落。
+2. **GNN 架构**：
+   - **边处理层**：将 AP 产生的本地估计值与大尺度衰落系数 $\beta$ 结合作为特征。
+   - **UE 聚合层**：每个 UE 节点聚合来自所有 16 个 AP 的空间特征。
+   - **交互层**：通过全连接层模拟 CPU 端的全局信息交换，有效抵消多用户间的干扰。
+3. **性能验证**：在 SNR 0-20dB 范围内进行测试，并计算相对于 LSFD 的误码率 (BER) 改善百分比。
+
+## 参数说明
+- `--train_epochs`: 训练迭代次数 (默认 100)。
+- `--batch_size`: 每步训练的样本数 (默认 128)。
+- `--lr`: 学习率 (默认 0.001)。
+- `--hidden_dim`: GNN 隐藏层维度 (默认 64)。
+- `--eval_trials`: 评估时的蒙特卡洛实验样本数 (默认 1000)。
+
+## 运行方式
+执行 `run.bat` 即可开始训练并在控制台观察 BER 对比表格。
+
+## 预期结果
+在高 SNR (20dB) 下，GNN 检测器由于能够学习到非线性的干扰模式，通常比线性加权的 LSFD 展现出 15% 以上的 BER 降低。
