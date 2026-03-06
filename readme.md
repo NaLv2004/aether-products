@@ -316,3 +316,91 @@
 ## 运行方式
 
 直接运行 `run.bat` 或在命令行执行：
+
+## [Current Step]
+# 累进式位宽策略网络 (Successive Refinement Policy Network)
+
+本项目实现了 Cell-Free MIMO 系统中接入点 (AP) 侧的可学习位宽分配机制。通过动态决策每个链路的量化比特数，平衡通信开销与探测精度。
+
+## 1. 核心模块说明
+
+- **ResidualLSQ**: 
+    - 采用残差量化结构实现 0, 2, 4 bits 三档位宽。
+    - 4-bit 传输被拆分为 2-bit 基础量化和 2-bit 残差量化，符合累进式传输逻辑。
+    - 底层调用 `LSQQuantizer` 确保量化阶梯（Step-size）可学习。
+
+- **BitwidthPolicyNet**:
+    - 一个轻量级 MLP，根据 AP 到 UE 的大尺度衰落系数 $\beta_{lk}$ 预测最优位宽。
+    - 逻辑：对于信道质量极差的链路，分配 0-bit 以节省带宽；对于中等质量分配 2-bit；对于高质量链路分配 4-bit。
+
+- **Gumbel-Softmax**:
+    - 使得离散的位宽选择过程可导。
+    - 训练时使用软采样（`hard=False`）进行梯度回传，评估时使用硬采样（`hard=True`）模拟真实量化决策。
+
+## 2. 损失函数
+
+训练目标结合了信号检测的准确性和比特率成本：
+$$Loss = MSE + \lambda_{bit} \times \text{Average\_Bitrate}$$
+其中 $\lambda_{bit}$ 是一个超参数，用于控制性能与压缩率的权衡。
+
+## 3. 命令行参数
+
+- `--train_epochs`: 训练迭代轮数 (默认: 100)。
+- `--lambda_bit`: 比特率惩罚系数。增加此值将引导网络选择更低的位宽 (默认: 0.01)。
+- `--lr`: 学习率 (默认: 0.001)。
+- `--tau`: Gumbel-Softmax 的温度参数。较低的温度使概率分布更接近 One-hot (默认: 1.0)。
+
+## 4. 运行与验证
+
+脚本 `refinement_policy.py` 会在训练结束后自动对比：
+1. **固定 2-bit**: 所有链路统一分配 2 bits。
+2. **动态策略**: 同样在平均约 2-bit 的约束下（通过调节 $\lambda_{bit}$），观察 MSE 是否由于优化了分配方案而下降。
+
+输出将包含每个 Epoch 的 Loss 变化，以及在 SNR=10dB 下的 MSE 和平均比特率对比表。
+
+## [Current Step]
+# Successive Refinement Policy 训练优化说明
+
+本脚本 `refinement_policy.py` 实现了基于 Gumbel-Softmax 的动态位宽分配策略。网络根据大尺度衰落系数 $\beta$ 为每个 AP-UE 链路选择最优位宽（0, 2, 4 bits），并使用 GNN 探测器进行联合优化。
+
+### 修复与改进内容
+1.  **Bug 修复**：修复了在打印 `Policy Probs` 时由于 Tensor 仍处于计算图中导致的 `RuntimeError`。增加了 `.detach()` 调用。
+2.  **增加训练轮数**：默认 `--train_epochs` 提升至 200，确保动态策略有足够的收敛时间。
+3.  **温度衰减策略 (Tau Cooling)**：
+    - 引入了 Gumbel-Softmax 温度衰减：`tau = max(0.1, args.tau * (0.95 ** (epoch // 10)))`。
+    - 在训练初期使用高温度进行“软搜索”，后期降低温度以逼近硬选择（Hard Selection）。
+4.  **学习率衰减**：引入 `StepLR` 每 50 个 epoch 学习率减半，提高后期训练的平稳性。
+5.  **基准对比增强**：在评估时，将训练好的 `base_quant` 提取出来作为 "Fixed 2-bit" 基准，验证探测器对不同位宽分布的适应性。
+
+### 命令行参数
+- `--train_epochs`: 训练总轮数 (默认 200)。
+- `--lr`: 初始学习率 (默认 0.001)。
+- `--lambda_bit`: 比特率惩罚系数 (默认 0.01)。系数越大，网络越倾向于分配更低的比特数。
+- `--tau`: Gumbel-Softmax 初始温度 (默认 1.0)。
+
+### 输出结果说明
+- 脚本运行结束后，将打印 `Metric` 对比表（Fixed 2-bit vs Dynamic Policy）。
+- 关键输出：`Policy Probs vs Beta (Sampled)` 表格。通过该表可以观察到，随着 $\beta$（信号强度）的增大，网络是否成功学会了从分配 0-bit 转换到分配 2-bit 甚至 4-bit。
+
+## [Current Step]
+# 优化版 Successive Refinement 策略与 Task-aware GNN
+
+本脚本实现了针对 CF-MIMO 系统的前向反馈位宽优化策略。
+
+### 主要改进点：
+1. **策略网络输入特征优化**：将原始的大尺度衰落系数 $\beta$ 转换为对数域（dB），并进行归一化处理。这解决了 MLP 面对极小输入量级时的梯度消失和输出塌缩问题。
+2. **Task-aware GNN 探测器**：
+   - 探测器输入维度从 3 扩展至 6。
+   - 新增特征包括位宽选择的 Gumbel-Softmax 权重向量 $[p_0, p_2, p_4]$。
+   - 这使得 GNN 能够感知当前的量化精度，从而在聚合来自不同 AP 的信息时，自动降低 0-bit 分支（噪声）的权重。
+3. **性能指标增强**：
+   - 引入 **Sum-rate** 指标：$R = \log_2(1 + (1-MSE)/MSE)$。
+   - 策略网络最后一层使用较小的初始化权重，确保训练初期探索的公平性。
+
+### 关键超参数说明：
+- `--train_epochs`: 训练轮数（建议 200 以保证策略收敛）。
+- `--lambda_bit`: 比特率惩罚系数。调节此参数可使 `Dynamic Policy` 的平均比特率逼近基准（如 2.0）。
+- `--tau`: Gumbel-Softmax 的初始温度，随训练进行退火。
+
+### 预期结果：
+随着 Beta 增大，网络应倾向于分配更高比特（P(4-bit) 增加）；在 Beta 极小时，网络应倾向于选择 P(0-bit) 以节省开销且不引入强噪声。

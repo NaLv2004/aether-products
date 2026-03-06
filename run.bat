@@ -1,5 +1,1 @@
-@echo off
-echo Installing requirements (if any)...
-pip install torch
-echo Running LSQ Quantizer Verification...
-python lsq_quantizer.py --bit_width 2 --lr 0.01 --num_elements 100
+python refinement_policy.py --train_epochs 200 --lambda_bit 0.005
