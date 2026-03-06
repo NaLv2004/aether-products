@@ -404,3 +404,63 @@ $$Loss = MSE + \lambda_{bit} \times \text{Average\_Bitrate}$$
 
 ### 预期结果：
 随着 Beta 增大，网络应倾向于分配更高比特（P(4-bit) 增加）；在 Beta 极小时，网络应倾向于选择 P(0-bit) 以节省开销且不引入强噪声。
+
+## [Current Step]
+# 第 6 步：联合量化感知训练 (Joint QAT)
+
+本项目实现了针对 CF-MIMO 系统的联合量化感知训练框架。核心目标是优化比特分配策略与 GNN 探测器的协同性能。
+
+## 主要功能
+
+1.  **位宽感知注意力 (Bit-Aware Attention)**:
+    -   设计了 `AttentionGNNDetector`。
+    -   该探测器不再是简单地拼接位宽信息，而是通过 `bit_attention_mapper` 将策略网络输出的位宽概率 `[p0, p2, p4]` 映射为隐藏层的注意力缩放因子。
+    -   这使得 GNN 能够根据链路的量化精度动态调整对各条边特征的依赖程度（例如，对于 0-bit 分配的链路，其特征会被显著抑制）。
+
+2.  **全精度基准 (Full-Precision GNN)**:
+    -   同步训练一个无量化的 GNN 模型作为性能上界（100% 性能）。
+    -   用于计算 `Performance Ratio = Dynamic MSE / FP MSE`。
+
+3.  **联合优化与退火**:
+    -   同时优化 `BitwidthPolicyNet`、`ResidualLSQ` 和 `AttentionGNNDetector`。
+    -   使用 Gumbel-Softmax 进行离散决策的梯度估计。
+    -   实现了温度 `tau` 的指数退火，确保训练从平滑分布过渡到硬性决策。
+
+## 关键参数
+
+| 参数 | 默认值 | 说明 |
+| :--- | :--- | :--- |
+| `--epochs` | 150 | 训练轮数 |
+| `--lambda_bit` | 0.002 | 比特率惩罚系数，调节该值可平衡性能与位宽。目标平均位宽约 2.5 bits。 |
+| `--tau_init` | 1.0 | Gumbel-Softmax 初始温度 |
+| `--batch_size` | 128 | 批大小 |
+
+## 预期结果
+
+脚本在运行结束时会输出详细的对比表格。预期的性能目标是：
+-   `Dynamic Policy` 的 MSE 与 `Full-Precision` 的比值在 1.1 以内（即达到全精度的 90% 以上性能）。
+-   平均比特率稳定在 2.5 bits 左右。
+-   相比 `Fixed 2-bit`，`Dynamic Policy` 能在相似或略高的比特率下显著降低 MSE 和 BER。
+
+## [Current Step]
+# Joint QAT with Bit-Aware Attention Mechanism
+
+本模块实现了联合量化感知训练 (Joint QAT)，旨在为 CF-MIMO 系统中的接入点 (AP) 到 CPU 的链路动态分配位宽。
+
+## 主要功能
+1. **错误修复**：修正了 `JointQATSystem` 中的 `super().__init__` 调用错误。
+2. **位宽感知注意力 (Bit-Aware Attention)**：`AttentionGNNDetector` 引入了位宽感知映射器。它根据每个链路当前的位宽选择概率 (weights)，动态调整 GNN 对该链路信号的“注意力”权重。例如，当策略选择 0-bit (链路关断) 时，注意力权重趋近于 0。
+3. **对比评估**：
+    - **Full-Precision (FP)**：无量化 GNN 基准。
+    - **Fixed 2-bit**：所有链路固定使用 2-bit LSQ 量化的基准。
+    - **Dynamic (Policy)**：由 `BitwidthPolicyNet` 根据大尺度衰落 $\beta$ 动态决定 0/2/4 bit 分配的联合方案。
+4. **性能指标**：计算 MSE, BER, 平均比特率以及系统和速率 (Sum-rate)，并输出 **Performance Ratio (Dynamic MSE / FP MSE)**。
+
+## 命令行参数
+- `--epochs`: 训练总轮数 (默认 150)。
+- `--lr`: 学习率 (默认 0.001)。
+- `--lambda_bit`: 比特率惩罚系数 (默认 0.002)。增加此值会降低平均比特率，但可能增大 MSE。
+- `--eval_trials`: 评估时的测试样本数 (默认 1000)。
+
+## 运行方式
+执行 `run.bat` 即可开始训练并观察 SNR=10dB 下的三方案对比表格。

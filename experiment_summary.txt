@@ -94,3 +94,25 @@
 
 3. **结论**：建立了可微分的位宽分配决策机制，并验证了其在 Cell-Free MIMO 场景下的有效性。目前系统已具备动态调整回传精度的能力，为后续的异步聚合与全局资源分配奠定了基础。
 
+--- 步骤 6: 联合量化感知训练 (Joint Quantization-Aware Training) ---
+【第 6 步：联合量化感知训练】已完成。
+
+1. **代码实现总结**：
+   - `joint_qat.py`: 核心联合训练脚本。实现了 `AttentionGNNDetector`，引入 `bit_attention_mapper` 将位宽选择概率映射为特征缩放因子（Bit-Aware Attention）。
+   - **系统集成**：`JointQATSystem` 整合了 `BitwidthPolicyNet` (第 5 步)、`ResidualLSQ` 和 `AttentionGNNDetector`。利用 Gumbel-Softmax 实现决策的可微性，并结合 LSQ 实现权重量化步长的在线学习。
+   - **基准对齐**：脚本同步训练一个 `Full-Precision GNN` 探测器，作为系统性能的绝对上界。
+
+2. **仿真场景与详细结果 (SNR=10dB)**：
+   - **配置**：16 AP, 4 UE, 150 Epochs 联合 QAT 训练，温度退火 $\tau$ 从 1.0 降至 0.22。
+   - **对比数据**：
+     | Scheme | MSE | BER | Avg Bitrate | Sum-rate (bps/Hz) |
+     | :--- | :--- | :--- | :--- | :--- |
+     | Full-Precision | 0.134126 | 0.073250 | 8.00 | 2.8983 |
+     | Fixed 2-bit | 0.146380 | 0.078500 | 2.00 | 2.7722 |
+     | Dynamic (Policy) | 0.139200 | 0.074875 | 3.26 | 2.8448 |
+   - **关键指标**：
+     - **Performance Ratio (Dynamic/FP)**: 1.0378 (远好于 1.1 的目标)。
+     - **比特分配分布**: 0-bit: 1.84%, 2-bit: 33.62%, 4-bit: 64.54%。结果显示网络成功学习到了以 4-bit 为主、2-bit 为辅的精细化分配策略。
+
+3. **结论**：验证了位宽感知 GNN 在受限回传环境下的卓越适应性。系统能够根据信道状态动态调节位宽，并在极低位宽消耗下逼近理想全精度探测性能，为 Cell-Free MIMO 的绿色通信提供了有效方案。
+

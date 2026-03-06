@@ -1,1 +1,1 @@
-python refinement_policy.py --train_epochs 200 --lambda_bit 0.005
+python joint_qat.py --epochs 150 --lr 0.001 --lambda_bit 0.002 --eval_trials 1000
