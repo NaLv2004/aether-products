@@ -1,1 +1,3 @@
-python joint_qat.py --epochs 150 --lr 0.001 --lambda_bit 0.002 --eval_trials 1000
+@echo off
+echo Starting Step 7: Hard Selection Inference and Robustness Verification...
+python evaluation.py --epochs 150 --lr 0.001 --lambda_bit 0.002

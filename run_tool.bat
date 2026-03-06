@@ -1,1 +1,1 @@
-call run.bat
+python evaluation.py --epochs 150 --lr 0.001 --lambda_bit 0.002

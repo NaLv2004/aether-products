@@ -464,3 +464,41 @@ $$Loss = MSE + \lambda_{bit} \times \text{Average\_Bitrate}$$
 
 ## 运行方式
 执行 `run.bat` 即可开始训练并观察 SNR=10dB 下的三方案对比表格。
+
+## [Current Step]
+# Step 7: 硬选择推理与鲁棒性验证 (evaluation.py)
+
+该脚本实现了研究计划的第七步，重点关注模型在离散化决策下的表现、跨信噪比的泛化能力以及面对节点故障时的生存能力。
+
+## 主要功能
+
+1.  **联合训练集成**：
+    - 集成了 `joint_qat.py` 中的 `JointQATSystem`。
+    - 在 SNR=10dB 下进行 150 个 Epoch 的联合优化，使模型学习针对具体信道质量的位宽分配策略。
+
+2.  **硬选择推理 (Hard Inference)**：
+    - 在推理阶段，通过设置 `tau=0.01` 和 `hard=True` 的 Gumbel-Softmax 或直接 Argmax，将概率连续分布强制转换为确定的离散比特选择（0, 2, 或 4 bit）。
+
+3.  **SNR 扫描性能对比**：
+    - 测试范围：[0, 5, 10, 15, 20] dB。
+    - 对比方案：
+        - **Full-Precision (全精度)**：性能上限。
+        - **Fixed 2-bit (固定 2比特)**：传统的统一量化方案。
+        - **Proposed Dynamic Policy (动态策略)**：本研究提出的根据信道条件自动分配位宽的方案。
+
+4.  **鲁棒性验证 (AP Survival Analysis)**：
+    - 模拟回传链路故障。随机挑选 0, 2, 4, 8 个 AP 并强制关闭（0-bit）。
+    - 验证位宽感知注意力机制（Bit-Aware Attention）是否能通过其余正常工作的 AP 进行空间补偿。
+
+5.  **复杂度分析**：
+    - 统计 AP 侧 `BitwidthPolicyNet` 的参数量。
+    - 定性对比 LMMSE（涉及 $O(K^3)$ 矩阵求逆）与所提方案（轻量级 MLP）的计算成本。
+
+## 参数说明
+
+- `--epochs`: 训练轮数（默认 150）。
+- `--lr`: 学习率（默认 0.001）。
+- `--lambda_bit`: 位宽惩罚系数（默认 0.002），用于平衡 BER 和前传开销。
+- `--tau_init`: Gumbel-Softmax 初始温度。
+
+## 运行方式
