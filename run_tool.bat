@@ -1,0 +1,1 @@
+python modeling.py --num_ap 16 --num_ue 4 --epochs 2000 --area_size 200

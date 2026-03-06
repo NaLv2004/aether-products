@@ -1,0 +1,17 @@
+--- 步骤 1: 局部信息驱动的系统建模 (Local-CSI Based System Modeling) ---
+【第 1 步：局部信息驱动的系统建模】已完成。
+
+1. **代码实现总结**：
+   - `modeling.py`: 核心仿真脚本。实现了 `quantize_estimate` 函数（基于 AQNM 模型）和 `simulate` 函数。
+   - **物理模型**：采用 3GPP TR 38.901 UMi NLOS 路径损耗、8dB 阴影衰落和 Rayleigh 小尺度衰落。AP 侧执行局部 LMMSE (Local LMMSE) 估计，CPU 侧执行去偏置聚合 (De-biased Aggregation) 以消除幅度偏置并确保 MSE 在合理区间。
+   - **量化参数**：定义了 $b \in \{2, 4, 8\}$ 对应的失真因子 $\rho$ 分别为 $0.1175, 0.009497, 0.00003$。
+
+2. **仿真场景与结果**：
+   - **配置**：16 AP, 4 UE, 200m x 200m 区域, 23dBm 发射功率, 20MHz 带宽。AP 处平均接收 SNR 约为 31.16 dB。
+   - **性能数据**（2000 次蒙特卡洛实验）：
+     - 2-bit: Backhaul = 128 bits, Avg MSE = 0.3753, Sum-rate = 10.9894 bps/Hz
+     - 4-bit: Backhaul = 256 bits, Avg MSE = 0.3140, Sum-rate = 12.7674 bps/Hz
+     - 8-bit: Backhaul = 512 bits, Avg MSE = 0.3081, Sum-rate = 12.9386 bps/Hz
+
+3. **结论**：建立了稳定的基准模型，验证了回传位宽对检测性能的显著影响，已准备好进入第二步进行 AP 侧分层残差编码权重的设计。
+
